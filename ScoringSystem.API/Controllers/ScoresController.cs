@@ -31,6 +31,13 @@ namespace ScoringSystem.API.Controllers
             return Ok();
         }
 
+        // Su dung file san de test project
+        [HttpGet("test")]
+        public async Task<IActionResult> TestCalculateScore()
+        {
+            var
+        }
+
         [HttpPost("upload")]    
         public async Task<IActionResult> UploadFile(IFormFile file)
         {
