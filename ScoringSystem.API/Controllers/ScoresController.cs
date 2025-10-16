@@ -16,8 +16,18 @@ namespace ScoringSystem.API.Controllers
         }
 
         [HttpPost]
-        public IActionResult CalculateScore()
+        public async Task<IActionResult> CalculateScore(IFormFile file)
         {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded.");
+
+            // Use the FileHelper to save the file
+            var filePath = await _fileHelper.SaveFile(file);
+
+            // Unzip and process the file here
+            System.IO.Compression.ZipFile.ExtractToDirectory(filePath, Path.GetDirectoryName(filePath) ?? string.Empty);
+
+
             return Ok();
         }
 
@@ -31,5 +41,6 @@ namespace ScoringSystem.API.Controllers
             var filePath = await _fileHelper.SaveFile(file);
             return Ok(new { file.FileName, file.Length });
         }
+
     }
 }
