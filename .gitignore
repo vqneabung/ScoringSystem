@@ -361,6 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/ScoringSystem.API/Uploads/PE_PRN222_SU25_TrialTest_NguyenVQ.rar
-/ScoringSystem.API/Uploads/PE_PRN222_SU25_TrialTest_NguyenVQ.zip
-/ScoringSystem.API/Uploads/solution.zip
+/ScoringSystem.API/Uploads/
+

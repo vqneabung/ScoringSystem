@@ -35,7 +35,13 @@ namespace ScoringSystem.API.Controllers
         [HttpGet("test")]
         public async Task<IActionResult> TestCalculateScore()
         {
-            var
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads", "solution.zip");
+            // Unzip and process the file here
+            System.IO.Compression.ZipFile.ExtractToDirectory(filePath, Path.GetDirectoryName(filePath) ?? string.Empty);
+
+
+
+            return Ok();
         }
 
         [HttpPost("upload")]    
