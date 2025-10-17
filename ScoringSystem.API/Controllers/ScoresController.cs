@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ScoringSystem.API.Extensions;
+using System.Diagnostics;
 
 namespace ScoringSystem.API.Controllers
 {
@@ -35,11 +36,26 @@ namespace ScoringSystem.API.Controllers
         [HttpGet("test")]
         public async Task<IActionResult> TestCalculateScore()
         {
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads", "solution.zip");
+            var fileName = "PE_PRN222_SU25_TrialTest_NguyenVQ.zip";
+            var folderNameFromFile = Path.GetFileNameWithoutExtension(fileName);
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads", "PE_PRN222_SU25_TrialTest_NguyenVQ.zip");
+            var unzipPath = Path.GetDirectoryName(filePath) + "\\..\\..\\Project\\";
             // Unzip and process the file here
-            System.IO.Compression.ZipFile.ExtractToDirectory(filePath, Path.GetDirectoryName(filePath) ?? string.Empty);
+            Console.WriteLine("Extracting file: " + filePath);
+            //System.IO.Compression.ZipFile.ExtractToDirectory(filePath, unzipPath ?? string.Empty);
 
 
+            Console.WriteLine("Extracted to: " + unzipPath);
+            //Check folder exists
+            var projectFolder = unzipPath + folderNameFromFile;
+            Console.WriteLine("Project folder: " + projectFolder);
+            Console.WriteLine("Is this path existed: " + Path.Exists(projectFolder));
+
+            //var psiRes = new ProcessStartInfo("dotnet", $"restore \"{filePath}\"")
+            //{ RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
+            //var pres = Process.Start(psiRes);
+            //pres?.WaitForExit();
+            //if (pres?.ExitCode != 0) return BadRequest("Restore failed");
 
             return Ok();
         }
