@@ -4,7 +4,7 @@ namespace ScoringSystem.API.Extensions
 {
     public class ProcessHelper
     {
-        public bool RunProcess(string fileName, string arguments)
+        public bool RunProcess(string fileName, string arguments, Action? function = null)
         {
             var processInfo = new ProcessStartInfo(fileName, arguments)
             {
@@ -13,25 +13,61 @@ namespace ScoringSystem.API.Extensions
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+
             using var process = new Process
             {
                 StartInfo = processInfo,
                 EnableRaisingEvents = true
             };
+
+            // Khi có dòng output mới — sẽ được gọi ngay
+            process.OutputDataReceived += (sender, e) =>
+            {
+                if (e.Data != null)  // nếu không phải là dòng kết thúc
+                {
+                    Console.WriteLine(e.Data);
+                }
+            };
+
+            // Khi có dòng error mới
+            process.ErrorDataReceived += (sender, e) =>
+            {
+                if (e.Data != null)
+                {
+                    Console.WriteLine("ERR: " + e.Data);
+                }
+            };
+
             process.Start();
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
+
+            // Bắt đầu đọc output & error bất đồng bộ
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            //Thực thi hàm truyền vào trong khi process đang chạy
+            if (function != null)   
+            {
+                function();
+            }
+
+            // Chờ process kết thúc
             process.WaitForExit();
+
+            // (Nếu bạn muốn chắc chắn các dòng cuối được xử lý)
+            process.CancelOutputRead();
+            process.CancelErrorRead();
+
             if (process.ExitCode != 0)
             {
-                Console.WriteLine("Error: " + error);
-                Console.WriteLine("Output: " + output);
                 Console.WriteLine($"Process exited with code {process.ExitCode}");
                 return false;
             }
-            Console.WriteLine(output);
+
             return true;
         }
+
+        // Một hàm polling đơn giản
+       
 
         //Run browser to open url
         public void OpenUrlInBrowser(string url)
@@ -48,6 +84,24 @@ namespace ScoringSystem.API.Extensions
             catch (Exception ex)
             {
                 Console.WriteLine("Failed to open URL: " + ex.Message);
+            }
+        }
+
+        public void KillProcessByName(string processName)
+        {
+            try
+            {
+                var processes = Process.GetProcessesByName(processName);
+                foreach (var process in processes)
+                {
+                    process.Kill();
+                    process.WaitForExit();
+                    Console.WriteLine($"Killed process: {process.ProcessName} (ID: {process.Id})");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to kill process: " + ex.Message);
             }
         }
     }
