@@ -4,7 +4,7 @@ namespace ScoringSystem.API.Extensions
 {
     public class ProcessHelper
     {
-        public async Task<bool> RunProcess(string fileName, string arguments, Func<Task>? asyncFunction = null, Action? function = null, bool? exitProcess = false)
+        public async Task<bool> RunProcess(string fileName, string arguments, Func<Task>? asyncFunction = null, bool? exitProcess = false)
         {
             var processInfo = new ProcessStartInfo(fileName, arguments)
             {
@@ -44,51 +44,45 @@ namespace ScoringSystem.API.Extensions
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            //Thực thi hàm truyền vào trong khi process đang chạy
+            //Thực thi hàm async truyền vào trong khi process đang chạy
             if (asyncFunction != null)   
             {
                 try
                 {
-                    // ⭐ AWAIT async function properly
+                    // ⭐ AWAIT async function properly - CRITICAL!
                     await asyncFunction();
-                    Console.WriteLine("Async function completed successfully");
+                    Console.WriteLine("✅ Async function completed successfully");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error during async function execution: " + ex.Message);
-                }
-            }
-            else if (function != null)
-            {
-                try
-                {
-                    function();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Error during function execution: " + ex.Message);
+                    Console.WriteLine($"❌ Error during async function execution: {ex.Message}");
+                    Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 }
             }
 
-            // Kill process if requested
+            // Kill process if requested AFTER async function completes
             if (exitProcess == true)
             {
                 try
                 {
                     if (!process.HasExited)
                     {
+                        Console.WriteLine("Killing process...");
                         process.Kill();
-                        Console.WriteLine("Process killed");
+                        Console.WriteLine("✅ Process killed");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Error killing process: " + ex.Message);
+                    Console.WriteLine($"❌ Error killing process: {ex.Message}");
                 }
             }
 
             // Chờ process kết thúc
-            process.WaitForExit();
+            if (!process.HasExited)
+            {
+                process.WaitForExit();
+            }
 
             // (Nếu bạn muốn chắc chắn các dòng cuối được xử lý)
             process.CancelOutputRead();

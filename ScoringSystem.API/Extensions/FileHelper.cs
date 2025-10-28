@@ -48,5 +48,19 @@
             }
         }
 
+        //Tim vi tri appsettings.json
+        public string? FindAppSettingsJson(string rootPath)
+        {
+            try
+            {
+                var appSettingsFiles = Directory.GetFiles(rootPath, "appsettings.json", SearchOption.AllDirectories);
+                return appSettingsFiles.FirstOrDefault();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
     }
 }

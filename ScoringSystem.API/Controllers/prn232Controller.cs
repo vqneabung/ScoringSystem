@@ -5,6 +5,8 @@ using ScoringSystem.API.Dtos;
 using ScoringSystem.API.Extensions;
 using ScoringSystem.API.Services;
 using System.Diagnostics;
+using System.Text.Json;
+
 
 namespace ScoringSystem.API.Controllers
 {
@@ -42,44 +44,47 @@ namespace ScoringSystem.API.Controllers
                     return BadRequest(new { message = "Could not find Program.cs in project." });
                 }
 
+                //Thay doi connection string trong appsettings.json
+                ChangeConnectionString(projectPath, "Data Source=(local);Initial Catalog=SU25LeopardDB;User ID=sa;Password=1234567890;Trust Server Certificate=True");
+
                 ScoringResponse? scoringResult = null;
                 Exception? processException = null;
 
                 // Run with https://localhost:5000
                 // Thực thi function chấm bài khi process đang chạy
                 var runResult = await _processHelper.RunProcess(
-                     "dotnet",
-                  $"run --project \"{programCsFolder}\" --urls \"https://localhost:5000\"",
-                   async () =>
-                {
-                    try
+                    "dotnet",
+                    $"run --project \"{programCsFolder}\" --urls \"https://localhost:5000\"",
+                    async () =>
                     {
-                        // Wait a bit for server to start
-                        await Task.Delay(3000);
-
-                        // Parse test cases from query parameter or use default
-                        var testCases = GetTestCasesForPRN232(testCaseJson);
-
-                        // Create test case request with student's API URL
-                        var testCaseRequest = new TestCaseRequest
+                        try
                         {
-                            BaseUrl = "https://localhost:5000",
-                            TestCases = testCases
-                        };
+                            // Wait a bit for server to start
+                            await Task.Delay(3000);
 
-                        // Score the test cases
-                        scoringResult = await _scoringService.ScoreTestCasesAsync(testCaseRequest);
+                            // Parse test cases from query parameter or use default
+                            var testCases = GetTestCasesForPRN232(testCaseJson);
 
-                        Console.WriteLine($"Scoring completed: {scoringResult.Score}%");
-                    }
-                    catch (Exception ex)
-                    {
-                        processException = ex;
-                        Console.WriteLine($"Error during scoring: {ex.Message}");
-                    }
-                },
-                exitProcess: true
-                    );
+                            // Create test case request with student's API URL
+                            var testCaseRequest = new TestCaseRequest
+                            {
+                                BaseUrl = "https://localhost:5000/api",
+                                TestCases = testCases
+                            };
+
+                            // Score the test cases
+                            scoringResult = await _scoringService.ScoreTestCasesAsync(testCaseRequest);
+
+                            Console.WriteLine($"Scoring completed: {scoringResult.Score}%");
+                        }
+                        catch (Exception ex)
+                        {
+                            processException = ex;
+                            Console.WriteLine($"Error during scoring: {ex.Message}");
+                        }
+                    },
+                    true
+                );
 
                 // Check if there was an exception during scoring
                 if (processException != null)
@@ -101,7 +106,6 @@ namespace ScoringSystem.API.Controllers
                         results = scoringResult.Results
                     });
                 }
-
                 return StatusCode(500, new { message = "Scoring process did not complete." });
             }
             catch (Exception ex)
@@ -138,64 +142,13 @@ namespace ScoringSystem.API.Controllers
                                 // 2.1 - Authentication & Authorization
                       new Request
                            {
-                     Name = "2.1.1 - Login with valid credentials",
-                   Url = "/login",
-                Method = "POST",
-                          Special = "login",
-                            RequestBody = new Dictionary<string, object> { { "userName", "manager" }, { "password", "@1" } },
-                     ExpectedStatusCode = 200
-                   },
-                   new Request
-                       {
-                   Name = "2.1.2 - Login with invalid password",
-                  Url = "/login",
-                     Method = "POST",
-                            RequestBody = new Dictionary<string, object> { { "userName", "manager" }, { "password", "wrong" } },
-                      ExpectedStatusCode = 401
-                         },
-
-                    // 2.2 - User Management API Endpoints
-                           new Request
-                         {
-                    Name = "2.2.1 - Get user profile (protected)",
-                    Url = "/api/user/profile",
-                          Method = "GET",
-                     ExpectedStatusCode = 200,
-                        ExpectedResponse = new Dictionary<string, object> { { "id", null }, { "userName", null } }
-                  },
-                          new Request
-                     {
-                    Name = "2.2.2 - Get all users",
-                      Url = "/api/user",
-                Method = "GET",
-                           ExpectedStatusCode = 200
-                    },
-
-                          // 2.3 - Error Handling
-                     new Request
-                    {
-                     Name = "2.3.1 - Bad request returns 400",
-                  Url = "/api/user",
-                  Method = "POST",
-                       RequestBody = new Dictionary<string, object> { { "userName", "" } },
-                 ExpectedStatusCode = 400
-                       },
-                    new Request
-                 {
-                        Name = "2.3.2 - Not found returns 404",
-                                Url = "/api/user/99999",
-                           Method = "GET",
-                      ExpectedStatusCode = 404
-                },
-
-                          // 2.4 - Swagger
-                      new Request
-                     {
-                  Name = "2.4.1 - Swagger UI accessible",
-                                    Url = "/swagger/index.html",
-                        Method = "GET",
-                           ExpectedStatusCode = 200
-                                }
+                            Name = "2.1.1 - Login with valid credentials",
+                            Url = "/auth",
+                            Method = "POST",
+                            Special = "login",
+                            RequestBody = new Dictionary<string, object> { { "email", "administrator@leopard.com" }, { "password", "@1" } },
+                            ExpectedStatusCode = 200
+                   }
                             };
         }
 
@@ -261,5 +214,34 @@ namespace ScoringSystem.API.Controllers
             return string.Empty;
         }
 
+        //Change ConnectionString in appsettings.json
+        [NonAction]
+        private void ChangeConnectionString(string projectPath, string newConnectionString)
+        {
+            //Tim file appsettings.json
+            var appSettingsPath = _fileHelper.FindAppSettingsJson(projectPath);
+
+            var json = System.IO.File.ReadAllText(appSettingsPath!);
+            dynamic jsonObj = Newtonsoft.Json.JsonConvert.DeserializeObject(json)!;
+            //Neu trong connection string co ten khac DefaultConnect thi tim key do va sua value
+            if (jsonObj.ConnectionStrings != null)
+            {
+                foreach (var key in jsonObj.ConnectionStrings)
+                {
+                    if (key.Name != "DefaultConnection")
+                    {
+                        jsonObj.ConnectionStrings[key.Name] = newConnectionString;
+                    }
+                    else
+                    {
+                        jsonObj.ConnectionStrings.DefaultConnection = newConnectionString;
+                    }
+                }
+            }
+
+                string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
+                System.IO.File.WriteAllText(appSettingsPath, output);
+
+            }
+        }
     }
-}
