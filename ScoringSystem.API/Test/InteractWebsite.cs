@@ -58,8 +58,51 @@ namespace ScoringSystem.API.Test
             {
 
                 await page.GotoAsync("https://localhost:7124/login");
-
                 var username = "manager";
+
+                //If wrong password
+                var wrongPassword = "wrong_password";
+
+                //Neu page van o trang login thi dung
+                try
+                {
+                    await page.FillAsync("input#UserName", username);
+                    await page.FillAsync("input#Password", wrongPassword);
+                    await page.Locator("button:has-text(\"Login\")").ClickAsync();
+
+                    var currentURL = page.Url;
+                    if (currentURL.ToLower() == "https://localhost:7124/Login".ToLower())
+                    {
+                        Console.WriteLine("Still on login page after wrong password, as expected.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Wrong password test failed: Navigated away from login page.");
+                        return;
+                    }
+
+                    // Neu hien thi loi "Invalid Email or Password!"
+                    var errorMessage = await page.GetByText("Invalid Email or Password!").InnerTextAsync();
+
+                    if (errorMessage == "Invalid Email or Password!")
+                    {
+                        Console.Write("Error message displayed correctly: " + errorMessage);
+                        Task.Delay(2000).Wait();
+                    }
+                    else
+                    {
+                        Console.Write("Error message not displayed as expected.");
+                    }
+                    Console.WriteLine("Wrong password test passed.");
+                }
+                catch (TimeoutException)
+                {
+                    Console.WriteLine("Wrong password test failed: Navigated away from login page.");
+                }
+
+                //Return login page
+                await page.GotoAsync("https://localhost:7124/login");
+
                 var password = "@1";
 
                 // Test login page
@@ -72,60 +115,88 @@ namespace ScoringSystem.API.Test
                     await page.WaitForURLAsync("https://localhost:7124/LionProfile/Index");
                     Console.WriteLine("Login test passed.");
                     Task.Delay(2000).Wait();
+
                 }
                 catch (TimeoutException)
                 {
                     Console.WriteLine("Login test failed: Did not navigate to the expected URL.");
                 }
 
-                //Return login page
-                await page.GotoAsync("https://localhost:7124/login");
+                /* 
+                 	Implement the View List function for LionProfile with the following:
+	List all of the items in the LionProfile table. Display each record with its associated LionTypeName.
+	Paginate the list to show 3 records per page.
+                 */
 
-                //If wrong password
-                var wrongPassword = "wrong_password";
-
-                //Neu page van o trang login thi dung
-                try
+                await page.GotoAsync("https://localhost:7124/LionProfile/Index");
+                // Wait for the table to load
+                await page.WaitForSelectorAsync("table");
+                // Count the number of rows in the table body
+                var rows = await page.QuerySelectorAllAsync("table tbody tr");
+                if (rows.Count > 0)
                 {
-                    var currentURL = page.Url;
-                    if (currentURL.ToLower() == "https://localhost:7124/Login".ToLower())
-                    {
-                        Console.WriteLine("Still on login page after wrong password, as expected.");
-                    }
-                    else
-                    {
-                        Console.WriteLine("Wrong password test failed: Navigated away from login page.");
-                        return;
-                    }
-
-                    await page.FillAsync("input#UserName", username);
-                    await page.FillAsync("input#Password", wrongPassword);
-                    await page.Locator("button:has-text(\"Login\")").ClickAsync();
-
-                    // Neu hien thi loi "Invalid Email or Password!"
-                    var errorMessage = await page.GetByText("Invalid Email or Password!").InnerTextAsync();
-
-                    if (errorMessage == "Invalid Email or Password!")
-                    {
-                        Console.Write("Error message displayed correctly: " + errorMessage);
-                    }
-                    else
-                    {
-                        Console.Write("Error message not displayed as expected.");
-                    }
-                    Console.WriteLine("Wrong password test passed.");
-                    await page.PauseAsync();
+                    Console.WriteLine($"Table loaded with {rows.Count} records.");
                 }
-                catch (TimeoutException)
+                else
                 {
-                    Console.WriteLine("Wrong password test failed: Navigated away from login page.");
+                    Console.WriteLine("Table did not load any records.");
                 }
+                Task.Delay(2000).Wait();
 
             }
             catch (PlaywrightException ex)
             {
                 Console.WriteLine("Error navigating to the page: " + ex.Message);
             }
+
+            /*
+             Question 3 (2.5 points)
+	Implement the Create function to add new LionProfile into the database with the following validations:
+	All fields are required.
+	LionName: Minimum 4 characters, Each word starts with a capital letter. No special characters (#, @, &, (, )).
+	Weight must be greater than 30.
+	LionTypeId must be selected from a dropdown sourced from the LionType table
+	The newly added item should appear at the top of the list.
+
+             */
+
+            await page.GotoAsync("https://localhost:7124/LionProfile/Create");
+            // Wait for the form to load
+            //Test validation for empty fields
+            //Button Create has value "Create"
+            await page.Locator("input:has-text(\"Create\")").ClickAsync();
+
+            // Contain validation messages
+            var validationMessages = await page.Locator(".text-danger").AllInnerTextsAsync();
+            if (validationMessages.Count >= 4) // Assuming there are at least 4 required fields
+            {
+                Console.WriteLine("Validation messages displayed for empty fields.");
+                await page.PauseAsync();
+            }
+            else
+            {
+                Console.WriteLine("Validation messages not displayed as expected.");
+            }
+
+            //Test LionName validation
+            //Get input fields by their name attributes
+            await page.Locator("input[name*='LionName']").FillAsync("li");
+            await page.Locator("input[name*='Weight']").FillAsync("25");
+            await page.Locator("select[name*='LionTypeId']").SelectOptionAsync(new SelectOptionValue { Index = 1 });
+            //Input has type datetime-local
+            await page.Locator("input[name*='ModifiedDate']").FillAsync("2023-01-01T10:00");
+            await page.Locator("input:has-text(\"Create\")").ClickAsync();
+
+            if (await page.Locator(".text-danger").CountAsync() >= 2) // Assuming there are at least 2 validation messages
+            {
+                Console.WriteLine("Validation messages displayed for LionName and Weight.");
+                await page.PauseAsync();
+            }
+            else
+            {
+                Console.WriteLine("Validation messages for LionName and Weight not displayed as expected.");
+            }
+
 
 
         }

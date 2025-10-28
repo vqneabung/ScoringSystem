@@ -4,7 +4,7 @@ namespace ScoringSystem.API.Extensions
 {
     public class ProcessHelper
     {
-        public bool RunProcess(string fileName, string arguments, Action? function = null)
+        public bool RunProcess(string fileName, string arguments, Action? function = null, bool? exitProcess = false)
         {
             var processInfo = new ProcessStartInfo(fileName, arguments)
             {
@@ -48,6 +48,10 @@ namespace ScoringSystem.API.Extensions
             if (function != null)   
             {
                 function();
+                if (exitProcess == true)
+                {
+                    process.Kill();
+                }
             }
 
             // Chờ process kết thúc

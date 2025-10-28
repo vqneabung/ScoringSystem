@@ -28,6 +28,25 @@
             return filePath;
         }
 
+        public string FindProjectFolderWithSln(string rootPath)
+        {
+            try
+            {
+                var directories = Directory.GetDirectories(rootPath, "*", SearchOption.AllDirectories);
+                foreach (var dir in directories)
+                {
+                    var slnFiles = Directory.GetFiles(dir, "*.sln", SearchOption.TopDirectoryOnly);
+                    if (slnFiles.Length > 0)
+                    {
+                        return dir;
+                    }
+                }
+                return rootPath; // Fallback to rootPath if no sln found
+            } catch
+            {
+                return string.Empty;
+            }
+        }
 
     }
 }
