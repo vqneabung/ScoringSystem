@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Blog.Application.Common;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using RestSharp;
 using ScoringSystem.API.Extensions;
 using System.Diagnostics;
 
@@ -11,11 +13,14 @@ namespace ScoringSystem.API.Controllers
     {
         private readonly FileHelper _fileHelper;
         private readonly ProcessHelper _processHelper;
+        private readonly RestClient _restClientOptions;
 
         public Prn232Controller(FileHelper fileHelper, ProcessHelper processHelper)
         {
             _fileHelper = fileHelper;
             _processHelper = processHelper;
+            var restClientOptions = new RestClientOptions("https://localhost:5000");
+            _restClient = new RestClient(restClientOptions);
         }
 
         [HttpPost]
@@ -29,11 +34,11 @@ namespace ScoringSystem.API.Controllers
 
             var projectPath = processResult.ProjectPath;
 
-            //Run
-            var runResult = _processHelper.RunProcess("dotnet", $"run --project \"{FindProgramCsFolder(projectPath)}\"", () =>
+            //Run with https://localhost:5000
+            var runResult = _processHelper.RunProcess("dotnet", $"run --project \"{FindProgramCsFolder(projectPath)}\" --urls \"https://localhost:5000\" ", () =>
             {
                 // Thu chay khoan 5 giay roi return 
-                Task.Delay(5000).Wait();
+                Task.Delay(100000).Wait();
             }, true
             );
 
@@ -86,6 +91,7 @@ namespace ScoringSystem.API.Controllers
             return (true, projectFolder);
         }
 
+        [NonAction]
         //Tim thu muc chua file program.cs
         private string FindProgramCsFolder(string rootPath)
         {
@@ -100,6 +106,73 @@ namespace ScoringSystem.API.Controllers
             }
             return string.Empty;
         }
+
+        [NonAction]
+        public async Task<(bool, object)> HandleApiResponse<TRequest, TResponse>(Method method, string resource = "", TRequest? request = null, string? error = "Error")
+            where TRequest : class
+        {
+            try
+            {
+                var client = _restClientOptions;
+
+                try
+                {
+                    TResponse? response;
+
+                    switch (method)
+                    {
+                        case Method.Get:
+
+                            if (request != null)
+                            {
+                                Console.WriteLine("Warning: Only resource is necessary for GET method, request will be ignored.");
+                                Console.WriteLine("Please use query parameters in the resource URL if needed.");
+                                Console.WriteLine("Example: resource = \"endpoint?param1=value1&param2=value2\"");
+                            }
+
+                            response = await client.GetAsync<TResponse>(resource);
+                            break;
+                        case Method.Post:
+                            response = await client.PostJsonAsync<TRequest, TResponse>(resource, request);
+                            break;
+                        case Method.Put:
+                            response = await client.PutJsonAsync<TRequest, TResponse>(resource, request);
+                            break;
+                        case Method.Delete:
+                            if (request != null)
+                            {
+                                Console.WriteLine("Request is not necessary for DELETE method, request will be ignored.");
+                                Console.WriteLine("Please use query parameters in the resource URL if needed.");
+                                Console.WriteLine("Example: resource = \"endpoint?param1=value1&param2=value2\"");
+                            }
+
+                            response = await client.DeleteAsync<TResponse>(resource);
+                            break;
+                        default:
+                            throw new NotImplementedException();
+                    }
+
+                    if (response == null)
+                    {
+                        return (false, new object());
+                    }
+
+                    return (true, response!);
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(error + " " + ex.Message);
+                }
+
+                return (false, new object());
+            }
+            catch (Exception ex)
+            {
+                return (false, new object());
+            }
+        }
+
 
     }
 }
