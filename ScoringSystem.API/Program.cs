@@ -1,5 +1,6 @@
 using ScoringSystem.API.Extensions;
 using ScoringSystem.API.Test;
+using ScoringSystem.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<FileHelper>();
 builder.Services.AddScoped<ProcessHelper>();
 builder.Services.AddScoped<InteractWebsite>();
+builder.Services.AddScoped<ScoringService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi

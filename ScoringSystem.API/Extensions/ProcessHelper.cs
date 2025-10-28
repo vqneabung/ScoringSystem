@@ -4,7 +4,7 @@ namespace ScoringSystem.API.Extensions
 {
     public class ProcessHelper
     {
-        public bool RunProcess(string fileName, string arguments, Action? function = null, bool? exitProcess = false)
+        public async Task<bool> RunProcess(string fileName, string arguments, Func<Task>? asyncFunction = null, Action? function = null, bool? exitProcess = false)
         {
             var processInfo = new ProcessStartInfo(fileName, arguments)
             {
@@ -45,12 +45,45 @@ namespace ScoringSystem.API.Extensions
             process.BeginErrorReadLine();
 
             //Thực thi hàm truyền vào trong khi process đang chạy
-            if (function != null)   
+            if (asyncFunction != null)   
             {
-                function();
-                if (exitProcess == true)
+                try
                 {
-                    process.Kill();
+                    // ⭐ AWAIT async function properly
+                    await asyncFunction();
+                    Console.WriteLine("Async function completed successfully");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error during async function execution: " + ex.Message);
+                }
+            }
+            else if (function != null)
+            {
+                try
+                {
+                    function();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error during function execution: " + ex.Message);
+                }
+            }
+
+            // Kill process if requested
+            if (exitProcess == true)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill();
+                        Console.WriteLine("Process killed");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error killing process: " + ex.Message);
                 }
             }
 

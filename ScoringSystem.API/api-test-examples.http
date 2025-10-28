@@ -1,0 +1,88 @@
+### Test Scoring API - Example 1: Single Login Test
+POST https://localhost:7001/api/scoring/test-single
+Content-Type: application/json
+
+{
+  "name": "Login Test",
+  "url": "/login",
+  "method": "POST",
+  "special": "login",
+  "requestBody": {
+    "userName": "manager",
+    "password": "@1"
+  },
+  "expectedResponse": {
+    "token": null
+  }
+}
+
+### Test Scoring API - Example 2: Multiple Test Cases
+POST https://localhost:7001/api/scoring/test
+Content-Type: application/json
+
+{
+  "baseUrl": "https://localhost:5000",
+  "testCases": [
+    {
+   "name": "Login Test",
+      "url": "/login",
+      "method": "POST",
+      "special": "login",
+      "requestBody": {
+        "userName": "manager",
+        "password": "@1"
+      },
+      "expectedStatusCode": 200
+    },
+    {
+      "name": "Get All Lions",
+      "url": "/api/lionProfile",
+ "method": "GET",
+    "expectedResponse": {
+  "data": null
+   },
+      "expectedStatusCode": 200
+    },
+    {
+      "name": "Create Lion - Valid",
+      "url": "/api/lionProfile",
+      "method": "POST",
+      "requestBody": {
+        "lionName": "Leo The King",
+        "weight": 150,
+     "lionTypeId": 1,
+        "modifiedDate": "2024-01-01T10:00:00"
+      },
+      "expectedStatusCode": 201
+    },
+    {
+      "name": "Create Lion - Invalid Weight",
+      "url": "/api/lionProfile",
+      "method": "POST",
+      "requestBody": {
+        "lionName": "Leo",
+    "weight": 25,
+        "lionTypeId": 1,
+        "modifiedDate": "2024-01-01T10:00:00"
+      },
+      "expectedStatusCode": 400
+    },
+    {
+ "name": "Delete Lion",
+      "url": "/api/lionProfile/1",
+      "method": "DELETE",
+      "expectedStatusCode": 200
+    }
+  ]
+}
+
+### Test Scoring API - Example 3: Get single authentication test
+POST https://localhost:7001/api/scoring/test-single?baseUrl=https://localhost:5000
+Content-Type: application/json
+
+{
+  "name": "Protected Resource Test",
+  "url": "/api/lionProfile/profile",
+  "method": "GET",
+  "expectedStatusCode": 200
+}

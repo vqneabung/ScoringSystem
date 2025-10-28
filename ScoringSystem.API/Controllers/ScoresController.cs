@@ -153,41 +153,41 @@ namespace ScoringSystem.API.Controllers
             // Unzip and process the file here
 
             if (!Path.Exists(projectFolder))
-            {
-                Console.WriteLine("Extracting file: " + filePath);
-                Console.WriteLine("Extracted to: " + unzipPath);
-                System.IO.Compression.ZipFile.ExtractToDirectory(filePath, unzipPath ?? string.Empty);
-            }
+        {
+           Console.WriteLine("Extracting file: " + filePath);
+     Console.WriteLine("Extracted to: " + unzipPath);
+           System.IO.Compression.ZipFile.ExtractToDirectory(filePath, unzipPath ?? string.Empty);
+       }
 
             //Check folder exists
-            Console.WriteLine("Project folder: " + projectFolder);
-            Console.WriteLine("Is this path existed: " + Path.Exists(projectFolder));
+Console.WriteLine("Project folder: " + projectFolder);
+ Console.WriteLine("Is this path existed: " + Path.Exists(projectFolder));
 
             Console.WriteLine("Process...");
 
-            var restoreResult = _processHelper.RunProcess("dotnet", $"restore \"{projectFolder}\"");
+var restoreResult = await _processHelper.RunProcess("dotnet", $"restore \"{projectFolder}\"");
 
             if (!restoreResult) return BadRequest("Restore failed");
 
-            var buildResult = _processHelper.RunProcess("dotnet", $"build \"{projectFolder}\"");
+            var buildResult = await _processHelper.RunProcess("dotnet", $"build \"{projectFolder}\"");
 
-            if (!buildResult) return BadRequest("Build Failed!");
+         if (!buildResult) return BadRequest("Build Failed!");
 
-            ////Dotnet run
+   ////Dotnet run
             string[] webProjectFolderPaths = Directory.GetFiles(projectFolder, "program.cs", SearchOption.AllDirectories);
             if (webProjectFolderPaths.Length > 0)
-            {
-                string webProjectFolderPath = Path.GetDirectoryName(webProjectFolderPaths[0]!) ?? "";
-                var runResult = _processHelper.RunProcess("dotnet",
-                    $"run --urls \"https://localhost:5000\" --launch-profile https --project {webProjectFolderPath}", async () => 
-                    await _interactWebsite.Run());
+    {
+       string webProjectFolderPath = Path.GetDirectoryName(webProjectFolderPaths[0]!) ?? "";
+          var runResult = await _processHelper.RunProcess("dotnet",
+         $"run --urls \"https://localhost:5000\" --launch-profile https --project {webProjectFolderPath}", async () => 
+     await _interactWebsite.Run());
 
-            }
+    }
 
-            //Test open a browser
+      //Test open a browser
             //_processHelper.OpenUrlInBrowser("https://www.google.com/");
 
-            return Ok();
+  return Ok();
         }
 
         [HttpPost("upload")]    
