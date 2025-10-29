@@ -1,11 +1,14 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Microsoft.Playwright;
 using RestSharp;
 using ScoringSystem.API.Dtos;
 using ScoringSystem.API.Extensions;
 using ScoringSystem.API.Services;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 
 namespace ScoringSystem.API.Controllers
@@ -26,8 +29,13 @@ namespace ScoringSystem.API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> ScoringPRN232(IFormFile file, [FromQuery] string? testCaseJson = null)
+        public async Task<IActionResult> ScoringPRN232([FromForm] IFormFile file, [FromForm] IFormFile sqlFile ,[FromForm] string? testCaseJson = null)
         {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "No file uploaded." });
+            }
+
             try
             {
                 var processResult = await ProcessPrn232File(file);
@@ -46,6 +54,16 @@ namespace ScoringSystem.API.Controllers
 
                 //Thay doi connection string trong appsettings.json
                 ChangeConnectionString(projectPath, "Data Source=(local);Initial Catalog=SU25LeopardDB;User ID=sa;Password=1234567890;Trust Server Certificate=True");
+
+                try
+                {
+                    DeleteDatabase("SU25LeopardDB");
+                    CreateDatabase("SU25LeopardDB", sqlFile);
+
+                } catch (Exception ex)
+                {
+                    return BadRequest(new { message = $"Database setup failed: {ex.Message}" });
+                }
 
                 ScoringResponse? scoringResult = null;
                 Exception? processException = null;
@@ -126,7 +144,7 @@ namespace ScoringSystem.API.Controllers
             {
                 try
                 {
-                    var testCases = System.Text.Json.JsonSerializer.Deserialize<List<Request>>(testCaseJson);
+                    var testCases = JsonSerializer.Deserialize<List<Request>>(testCaseJson);
                     if (testCases != null)
                         return testCases;
                 }
@@ -239,9 +257,81 @@ namespace ScoringSystem.API.Controllers
                 }
             }
 
-                string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
-                System.IO.File.WriteAllText(appSettingsPath, output);
+            string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
+            System.IO.File.WriteAllText(appSettingsPath, output);
 
+        }
+
+        private void DeleteDatabase(string databaseName)
+        {
+            var connectionString = "Data Source=(local);Initial Catalog=master;User ID=sa;Password=1234567890;Trust Server Certificate=True";
+            using (var connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                var command = connection.CreateCommand();
+                command.CommandText = $@"
+                    IF EXISTS (SELECT name FROM sys.databases WHERE name = N'{databaseName}')
+                    BEGIN
+                        ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                        DROP DATABASE [{databaseName}];
+                    END";
+                command.ExecuteNonQuery();
             }
         }
+
+        private void CreateDatabase(string databaseName, IFormFile sqlFile)
+        {
+            // 1️⃣ Đọc nội dung file .sql
+            string sqlScript;
+            using (var reader = new StreamReader(sqlFile.OpenReadStream()))
+            {
+                sqlScript = reader.ReadToEnd();
+            }
+
+            // 2️⃣ Kết nối tới master (vì DB chưa tồn tại)
+            var masterConnectionString = "Data Source=(local);Initial Catalog=master;User ID=sa;Password=1234567890;Trust Server Certificate=True";
+
+            using (var connection = new SqlConnection(masterConnectionString))
+            {
+                connection.Open();
+
+                // 3️⃣ Nếu DB đã tồn tại thì xóa (tùy nhu cầu, có thể bỏ)
+                using (var dropCmd = new SqlCommand($@"
+            IF EXISTS (SELECT name FROM sys.databases WHERE name = N'{databaseName}')
+            BEGIN
+                ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                DROP DATABASE [{databaseName}];
+            END", connection))
+                {
+                    dropCmd.ExecuteNonQuery();
+                }
+
+                // 4️⃣ Tạo DB mới
+                using (var createCmd = new SqlCommand($"CREATE DATABASE [{databaseName}];", connection))
+                {
+                    createCmd.ExecuteNonQuery();
+                }
+
+                // 5️⃣ Chuyển sang DB mới
+                connection.ChangeDatabase(databaseName);
+
+                // 6️⃣ Xử lý file SQL: chia các batch theo "GO"
+                var batches = Regex.Split(sqlScript, @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+
+                foreach (var batch in batches)
+                {
+                    if (string.IsNullOrWhiteSpace(batch))
+                        continue;
+
+                    using (var cmd = new SqlCommand(batch, connection))
+                    {
+                        cmd.CommandTimeout = 0; // tránh timeout với script lớn
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+
+            Console.WriteLine($"✅ Database [{databaseName}] đã được tạo thành công từ file SQL!");
+        }
     }
+}

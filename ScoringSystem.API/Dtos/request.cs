@@ -11,7 +11,7 @@
         public int? ExpectedStatusCode { get; set; } = 200;
     }
 
-    public class TestCaseRequest
+    public class TestCaseRequest        
     {
         public List<Request> TestCases { get; set; } = new();
         public string BaseUrl { get; set; } = "https://localhost:5000";
